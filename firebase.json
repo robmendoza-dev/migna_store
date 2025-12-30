@@ -1,0 +1,37 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "migna-store",
+          "appId": "1:457857695730:android:62b356280c41994998356b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "migna-store",
+          "configurations": {
+            "android": "1:457857695730:android:62b356280c41994998356b",
+            "ios": "1:457857695730:ios:6f92d9f7087038de98356b",
+            "web": "1:457857695730:web:01055958a7296d5c98356b"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
