@@ -14,7 +14,6 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ya no necesitamos detectar si es admin aquí
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -26,7 +25,6 @@ class ProductCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
         child: InkWell(
-          // IMPORTANTE: Pasamos el productId a la pantalla de detalle
           onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product, productId: productId))
@@ -34,7 +32,7 @@ class ProductCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. IMAGEN (Limpia, sin botones encima)
+              // 1. IMAGEN
               Expanded(
                 flex: 55,
                 child: Stack(
@@ -52,7 +50,6 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // ETIQUETA DE OFERTA
                     if (product.isOffer)
                       Positioned(
                         top: 0,
@@ -115,7 +112,11 @@ class ProductCard extends StatelessWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: () {
-                            globalCart.add(product);
+                            // --- AQUÍ ESTABA EL PROBLEMA ---
+                            // Antes tenías: globalCart.add(product);
+                            // Ahora usamos la función que avisa al contador:
+                            addToCart(product);
+
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${product.name} añadido"), duration: const Duration(seconds: 1), backgroundColor: Colors.green));
                           },
                           child: const Text("AGREGAR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),

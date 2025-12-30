@@ -3,9 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/product_model.dart';
 import '../../widgets/product_card.dart';
+// 1. IMPORTAMOS EL NUEVO WIDGET DEL CONTADOR
+import '../../widgets/cart_badge.dart';
 import '../admin/add_product_screen.dart';
 import '../login_screen.dart';
-import 'cart_screen.dart';
+// Ya no necesitamos importar cart_screen aquí porque el CartBadge ya maneja la navegación
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +17,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Variable para guardar el texto de búsqueda
   String _searchText = "";
 
   @override
@@ -28,10 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text("Migna Store"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CartScreen())),
-          ),
+          // 2. REEMPLAZAMOS EL ICONBUTTON VIEJO POR EL NUEVO CON CONTADOR
+          const CartBadge(),
+
           StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: Column(
         children: [
-          // 1. BANNER + BUSCADOR
+          // BANNER + BUSCADOR
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // BARRA DE BÚSQUEDA FUNCIONAL
+                // BARRA DE BÚSQUEDA
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   decoration: BoxDecoration(
@@ -104,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: TextField(
                     onChanged: (value) {
-                      // Cada vez que escribes, actualizamos el estado
                       setState(() {
                         _searchText = value.toLowerCase();
                       });
@@ -120,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // 2. GRILLA FILTRADA
+          // GRILLA DE PRODUCTOS
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('products').orderBy('createdAt', descending: true).snapshots(),
@@ -131,8 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   return _buildEmptyState("No hay productos aún");
                 }
 
-                // FILTRADO LOCAL:
-                // Tomamos todos los productos y filtramos los que coincidan con el texto
                 final allDocs = snapshot.data!.docs;
                 final filteredDocs = allDocs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
@@ -140,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   return name.contains(_searchText);
                 }).toList();
 
-                // Si buscaste algo y no hay coincidencias
                 if (filteredDocs.isEmpty) {
                   return _buildEmptyState("No encontramos ese producto 😔");
                 }
@@ -175,7 +171,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget auxiliar para mostrar mensajes cuando no hay datos
   Widget _buildEmptyState(String message) {
     return Center(
       child: Column(

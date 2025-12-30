@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Asegúrate de tener url_launcher en pubspec.yaml
-import '../../models/product_model.dart'; // Importante para acceder a globalCart
+import 'package:url_launcher/url_launcher.dart';
+import '../../models/product_model.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -11,26 +11,26 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
 
-  // Calcula el total
+  // Calcula el total multiplicando PRECIO x CANTIDAD
   double get total {
     double sum = 0;
-    for (var item in globalCart) { // Usamos globalCart
-      sum += item.priceValue;
+    for (var item in globalCart) {
+      sum += (item.product.priceValue * item.quantity);
     }
     return sum;
   }
 
-  // --- LÓGICA DE WHATSAPP ---
   Future<void> _sendOrderToWhatsApp() async {
-    const String phoneNumber = "51946227753"; // TU NÚMERO
+    const String phoneNumber = "51946227753";
     String message = "¡Hola Migna Store! 🛒\nQuisiera realizar este pedido:\n\n";
 
-    for (var product in globalCart) {
-      message += "• ${product.name} (${product.price})\n";
+    for (var item in globalCart) {
+      // Ahora el mensaje dice: "3x Nombre del producto"
+      message += "• ${item.quantity}x ${item.product.name} - S/ ${(item.product.priceValue * item.quantity).toStringAsFixed(2)}\n";
     }
 
     message += "\n*Total a Pagar: S/ ${total.toStringAsFixed(2)}*";
-    message += "\n\nQuedo atento a la confirmación de entrega.";
+    message += "\n\nQuedo atento a la confirmación.";
 
     final Uri whatsappUrl = Uri.parse("https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}");
 
@@ -40,7 +40,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al abrir WhatsApp: $e"), backgroundColor: Colors.red),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     }
   }
@@ -63,33 +63,80 @@ class _CartScreenState extends State<CartScreen> {
           : Column(
         children: [
           Expanded(
-            child: ListView.builder(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(15),
               itemCount: globalCart.length,
+              separatorBuilder: (c, i) => const Divider(),
               itemBuilder: (context, index) {
                 final item = globalCart[index];
-                return ListTile(
-                  // Usamos una lógica simple para la imagen en miniatura
-                  leading: SizedBox(
-                    width: 50,
-                    height: 50,
-                    child: item.imagePath.startsWith('http')
-                        ? Image.network(item.imagePath, fit: BoxFit.cover)
-                        : Image.asset(item.imagePath, fit: BoxFit.cover),
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
                   ),
-                  title: Text(item.name),
-                  subtitle: Text(item.price),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        globalCart.removeAt(index);
-                      });
-                    },
+                  child: Row(
+                    children: [
+                      // 1. IMAGEN PEQUEÑA
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 60,
+                          height: 60,
+                          child: Image.network(
+                            item.product.imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 30, color: Colors.grey)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+
+                      // 2. NOMBRE Y PRECIO UNITARIO
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(item.product.price, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+
+                      // 3. CONTROLES DE CANTIDAD (- 1 +)
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                removeOneItem(index);
+                              });
+                            },
+                          ),
+                          Text(
+                              "${item.quantity}",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                            onPressed: () {
+                              setState(() {
+                                addToCart(item.product); // Reutilizamos la función sumar
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },
             ),
           ),
+
+          // PANEL INFERIOR DE TOTAL
           Container(
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
