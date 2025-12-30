@@ -1,163 +1,133 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
 import '../screens/client/product_detail_screen.dart';
-import '../screens/admin/add_product_screen.dart'; // Para poder editar
 
 class ProductCard extends StatelessWidget {
   final Product product;
-  // Necesitamos el ID del documento para poder borrarlo/editarlo de Firebase
   final String productId;
 
   const ProductCard({
     super.key,
     required this.product,
-    required this.productId // <--- Nuevo parámetro obligatorio
+    required this.productId
   });
-
-  // Función para borrar
-  Future<void> _deleteProduct(BuildContext context) async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("¿Borrar producto?"),
-        content: const Text("Esta acción no se puede deshacer."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancelar")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Borrar", style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    ) ?? false;
-
-    if (confirm) {
-      await FirebaseFirestore.instance.collection('products').doc(productId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Producto eliminado")));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si hay usuario logueado (Admin)
-    final bool isAdmin = FirebaseAuth.instance.currentUser != null;
-
+    // Ya no necesitamos detectar si es admin aquí
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 5))
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. IMAGEN Y BOTONES ADMIN (Stack)
-          Expanded( // Usamos Expanded para que la imagen ocupe el espacio disponible
-            child: Stack(
-              children: [
-                // La Imagen clicable
-                Positioned.fill(
-                  child: InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product))),
-                    child: Hero(
-                      tag: product.name,
-                      child: Container(
-                        margin: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(product.imagePath), // Asumimos que ya todo viene de Cloudinary
-                            fit: BoxFit.contain,
-                          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          // IMPORTANTE: Pasamos el productId a la pantalla de detalle
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product, productId: productId))
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. IMAGEN (Limpia, sin botones encima)
+              Expanded(
+                flex: 55,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.white,
+                      child: Hero(
+                        tag: product.name,
+                        child: Image.network(
+                          product.imagePath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
                         ),
                       ),
                     ),
-                  ),
-                ),
-
-                // SI ES ADMIN: Mostramos botones de Editar/Borrar arriba a la derecha
-                if (isAdmin)
-                  Positioned(
-                    top: 5,
-                    right: 5,
-                    child: Row(
-                      children: [
-                        // Botón Editar
-                        CircleAvatar(
-                          backgroundColor: Colors.white,
-                          radius: 14,
-                          child: IconButton(
-                            icon: const Icon(Icons.edit, size: 14, color: Colors.blue),
-                            padding: EdgeInsets.zero,
-                            onPressed: () {
-                              // Navegamos a la pantalla de agregar, pero enviando el producto para editar
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => AddProductScreen(productToEdit: product, docId: productId))
-                              );
-                            },
+                    // ETIQUETA DE OFERTA
+                    if (product.isOffer)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: const BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(15),
+                              bottomRight: Radius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "OFERTA",
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        const SizedBox(width: 5),
-                        // Botón Borrar
-                        CircleAvatar(
-                          backgroundColor: Colors.white,
-                          radius: 14,
-                          child: IconButton(
-                            icon: const Icon(Icons.delete, size: 14, color: Colors.red),
-                            padding: EdgeInsets.zero,
-                            onPressed: () => _deleteProduct(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // 2. INFO
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Column(
-              children: [
-                Text(
-                  product.name.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
-                Text(
-                  product.price,
-                  style: const TextStyle(color: Color(0xFF2D3E50), fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // 3. BOTÓN AÑADIR (Solo visible si NO eres admin, o para todos si prefieres)
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE91E63),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 30),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
               ),
-              onPressed: () {
-                globalCart.add(product);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("${product.name} añadido"), duration: const Duration(seconds: 1)),
-                );
-              },
-              child: const Text("AÑADIR", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            ),
+
+              // 2. INFORMACIÓN
+              Expanded(
+                flex: 45,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  color: const Color(0xFFFAFAFA),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            product.price,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.indigo),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 35,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE91E63),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () {
+                            globalCart.add(product);
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${product.name} añadido"), duration: const Duration(seconds: 1), backgroundColor: Colors.green));
+                          },
+                          child: const Text("AGREGAR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

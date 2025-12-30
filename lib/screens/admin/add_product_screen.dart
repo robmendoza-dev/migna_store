@@ -2,12 +2,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-// IMPORTANTE: Corregimos la ruta para encontrar el servicio
 import '../../services/web_upload_service.dart';
 import '../../models/product_model.dart';
 
 class AddProductScreen extends StatefulWidget {
-  // Parámetros opcionales para edición
   final Product? productToEdit;
   final String? docId;
 
@@ -23,26 +21,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
 
-  // Variables para la imagen
   Uint8List? _webImage;
   bool _isUploading = false;
+  bool _isOffer = false; // <--- NUEVA VARIABLE DE ESTADO
 
-  // Instancia del servicio de subida
   final WebUploadService _uploadService = WebUploadService();
 
-  // --- 1. INICIALIZAR DATOS SI ESTAMOS EDITANDO ---
   @override
   void initState() {
     super.initState();
     if (widget.productToEdit != null) {
       _nameController.text = widget.productToEdit!.name;
-      // Quitamos el "S/ " para que quede solo el número
       _priceController.text = widget.productToEdit!.price.replaceAll('S/ ', '');
       _descController.text = widget.productToEdit!.description;
+      _isOffer = widget.productToEdit!.isOffer; // <--- CARGAMOS EL VALOR SI EDITAMOS
     }
   }
 
-  // Función para seleccionar imagen nueva
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -55,7 +50,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  // Función inteligente: Sirve para CREAR y para EDITAR
   Future<void> _uploadProduct() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isUploading = true);
@@ -63,16 +57,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
       try {
         String? imageUrl;
 
-        // A. DECIDIR QUÉ IMAGEN USAR
         if (_webImage != null) {
-          // Caso 1: El usuario seleccionó una foto NUEVA -> Subir a Cloudinary
           imageUrl = await _uploadService.uploadImage(_webImage!);
         } else if (widget.productToEdit != null) {
-          // Caso 2: Estamos editando y NO cambió la foto -> Usar la URL vieja
           imageUrl = widget.productToEdit!.imagePath;
         }
 
-        // Validación: Si no hay imagen nueva ni vieja, detenemos todo
         if (imageUrl == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Debes seleccionar una imagen')),
@@ -81,45 +71,30 @@ class _AddProductScreenState extends State<AddProductScreen> {
           return;
         }
 
-        // B. PREPARAR DATOS
         Map<String, dynamic> data = {
           'name': _nameController.text.toUpperCase(),
-          'price': "S/ ${_priceController.text}", // Formato de moneda
+          'price': "S/ ${_priceController.text}",
           'description': _descController.text,
           'imagePath': imageUrl,
-          'createdAt': Timestamp.now(), // Actualiza la fecha de modificación
+          'isOffer': _isOffer, // <--- GUARDAMOS SI ES OFERTA
+          'createdAt': Timestamp.now(),
         };
 
-        // C. GUARDAR EN FIREBASE
         if (widget.docId != null) {
-          // MODO EDICIÓN: Actualizar documento existente
           await FirebaseFirestore.instance
               .collection('products')
               .doc(widget.docId)
               .update(data);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Producto actualizado correctamente')),
-            );
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Producto actualizado')));
         } else {
-          // MODO CREACIÓN: Crear nuevo documento
           await FirebaseFirestore.instance.collection('products').add(data);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Producto creado correctamente')),
-            );
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Producto creado')));
         }
 
-        if (mounted) Navigator.pop(context); // Volver al inicio
+        if (mounted) Navigator.pop(context);
 
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       } finally {
         if (mounted) setState(() => _isUploading = false);
       }
@@ -128,7 +103,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Título dinámico
     final String title = widget.productToEdit != null ? "Editar Producto" : "Nuevo Producto";
 
     return Scaffold(
@@ -141,7 +115,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
             key: _formKey,
             child: ListView(
               children: [
-                // PREVISUALIZACIÓN DE IMAGEN (MEJORADA)
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
@@ -152,10 +125,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       border: Border.all(color: Colors.grey),
                     ),
                     child: _webImage != null
-                        ? Image.memory(_webImage!, fit: BoxFit.contain) // Foto nueva (memoria)
+                        ? Image.memory(_webImage!, fit: BoxFit.contain)
                         : (widget.productToEdit != null
-                        ? Image.network(widget.productToEdit!.imagePath, fit: BoxFit.contain) // Foto vieja (internet)
-                        : const Column( // Placeholder vacío
+                        ? Image.network(widget.productToEdit!.imagePath, fit: BoxFit.contain)
+                        : const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
@@ -166,7 +139,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // CAMPOS DE TEXTO
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: "Nombre del Producto", border: OutlineInputBorder()),
@@ -185,9 +157,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   decoration: const InputDecoration(labelText: "Descripción", border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 20),
 
-                // BOTÓN DE GUARDAR
+                // --- AQUÍ ESTÁ EL NUEVO INTERRUPTOR DE OFERTA ---
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  title: const Text("¿Marcar como OFERTA?", style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text("Aparecerá una etiqueta naranja en el producto"),
+                  activeColor: Colors.orange,
+                  value: _isOffer,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _isOffer = value;
+                    });
+                  },
+                ),
+                // ------------------------------------------------
+
+                const SizedBox(height: 20),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo,
