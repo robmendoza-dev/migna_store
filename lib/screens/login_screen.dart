@@ -11,7 +11,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // Controladores de texto con los datos predefinidos para facilitar pruebas
-  final TextEditingController _emailController = TextEditingController(text: "admin@migna.com");
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
 
   bool _isLoading = false;
